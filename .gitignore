@@ -1,0 +1,30 @@
+# Dados brutos e processados
+data/raw/
+data/processed/
+
+# Ambientes virtuais
+venv/
+.env
+.envrc
+
+# Notebooks temporários
+.ipynb_checkpoints/
+
+# Compilados e temporários Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+logs/
+*.log
+
+# Arquivos do sistema e editores
+.DS_Store
+Thumbs.db
+
+# Modelos grandes, arquivos binários pesados
+*.h5
+*.pt
+*.pkl
+*.joblib
