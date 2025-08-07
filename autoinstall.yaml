@@ -1,0 +1,194 @@
+# ======================================================================
+# Arquivo: Urba_autoinstall_linux_dualboot_ubuntu25.04.yaml
+# Propósito: Instalação automatizada e reprodutível do Ubuntu 25.04
+# para ambiente dual boot Windows 10 + Ubuntu, com sistema de arquivos,
+# configuração de rede automática, mensagens de progresso e download de drivers
+# para ambiente do projeto "From News to Forecast".
+#
+# Autor: Edelmar Urba
+# Data: 05/08/2025
+# ======================================================================
+
+version: 1
+identity:
+  hostname: ubuntu-dualboot
+  username: urbauser
+  password: "$6$SALTSALT$hashedpasswordhere"  # Gerado com mkpasswd --method=SHA-512
+ssh:
+  install-server: true
+  allow-pw: true
+  authorized-keys:
+    - "ssh-rsa AAAAB3Nza..."  # Substituir pela sua chave SSH pública
+
+keyboard:
+  layout: br
+  variant: abnt2
+
+locale: pt_BR.UTF-8
+timezone: America/Sao_Paulo
+
+user-data:
+  disable_root: false
+
+storage:
+  layout:
+    name: custom
+  swap:
+    size: 32G
+  devices:
+    - match:
+        serial: "SFYRDK2000G"
+      ptable: gpt
+      wipe: superblock-recursive
+      preserve: false
+      grub_device: true
+      partitions:
+        - size: 150G
+          id: ubuntu-root
+          type: 8300
+          flag: linux-root
+          fs:
+            type: ext4
+          label: UbuntuRoot
+          mount: /
+        - size: 150G
+          id: ubuntu-home
+          type: 8300
+          fs:
+            type: ext4
+          label: Home
+          mount: /home
+        - size: 32G
+          id: swap-part
+          type: 8200
+          flag: swap
+        - size: 350G
+          id: shared-ntfs
+          type: 0700
+          fs:
+            type: ntfs
+          label: Compartilhada
+          mount: /mnt/compartilhada
+        - size: 900G
+          id: win-space
+          type: 0700  # Reservado para Windows 10, sem formatação
+        - size: 418G
+          id: reserved-space
+          type: 8300
+          preserve: true
+
+apt:
+  primary:
+    - http://archive.ubuntu.com/ubuntu
+  security:
+    - http://security.ubuntu.com/ubuntu
+
+packages:
+  - build-essential
+  - python3
+  - python3-pip
+  - python3-venv
+  - git
+  - unzip
+  - curl
+  - wget
+  - htop
+  - ntfs-3g
+  - software-properties-common
+
+late-commands:
+  # Informações ao usuário no terminal da instalação
+  - curtin in-target -- bash -c "echo 'Atualizando lista de pacotes...'; apt update"
+  - curtin in-target -- bash -c "echo 'Atualizando pacotes do sistema...'; apt upgrade -y"
+  - curtin in-target -- bash -c "echo 'Instalando snapcraft (opcional)...'; snap install snapcraft --classic"
+
+  # Criação e execução de script para configurar rede DHCP e testar conectividade
+  - curtin in-target -- bash -c "cat > /usr/local/bin/urba_configura_rede.sh << 'URBAEOF'
+#!/bin/bash
+set -e
+echo '[Urba] Detectando interface de rede Ethernet...'
+IFACE=\$(ip -o link show | awk -F': ' '{print \$2}' | grep -E '^(en|eth|ens)' | head -n1)
+if [ -z \"\$IFACE\" ]; then
+  echo '[Urba][Erro] Interface não encontrada.'
+  exit 1
+fi
+echo \"[Urba] Interface selecionada: \$IFACE\"
+echo '[Urba] Criando configuração netplan DHCP...'
+cat <<EOF > /etc/netplan/99-urba-netplan.yaml
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    \$IFACE:
+      dhcp4: true
+EOF
+echo '[Urba] Aplicando configuração de rede...'
+netplan apply
+echo '[Urba] Testando conectividade com google.com...'
+if ping -c 3 google.com; then
+  echo '[Urba] Rede configurada com sucesso!'
+else
+  echo '[Urba][Erro] Sem conectividade. Verifique infra.'
+  exit 1
+fi
+URBAEOF"
+  - curtin in-target -- chmod +x /usr/local/bin/urba_configura_rede.sh
+  - curtin in-target -- /usr/local/bin/urba_configura_rede.sh
+
+  # Script para download automatizado dos drivers essenciais
+  - curtin in-target -- bash -c "cat > /usr/local/bin/urba_download_drivers.sh << 'URBAEOF'
+#!/bin/bash
+set -e
+echo '[Urba] Iniciando download de drivers essenciais...'
+DRIVER_DIR='/mnt/compartilhada/drivers'
+mkdir -p \"\$DRIVER_DIR\"
+declare -A drivers=(
+  ['ASUS_Chipset']='https://dlcdnets.asus.com/pub/ASUS/mb/Socket2011/RAMPAGE_V_EDITION_10/Chipset/Intel_Chipset_Drivers_Win10_64_VER100.zip'
+  ['ASUS_Audio']='https://dlcdnets.asus.com/pub/ASUS/mb/Socket2011/RAMPAGE_V_EDITION_10/Audio/Realtek_Audio_64_VER6015.zip'
+  ['ASUS_LAN']='https://dlcdnets.asus.com/pub/ASUS/mb/Socket2011/RAMPAGE_V_EDITION_10/LAN/Intel_LAN_Driver.zip'
+  ['ASUS_SATA_NVMe']='https://dlcdnets.asus.com/pub/ASUS/mb/Socket2011/RAMPAGE_V_EDITION_10/Storage/Intel_Rapid_Storage_Technology.zip'
+  ['NVIDIA_GTX1070']='https://international.download.nvidia.com/Windows/552.22/552.22-desktop-win10-win11-64bit-international-dch-whql.exe'
+  ['GSkill_TridentZ_RGB']='https://download.gskill.com/download/1502180912/1551690847/Trident-Z--Trident-Z5--Ripjaws-M5-RGB-Family/G.SKILL-Trident-Z-Lighting-Control-v1.00.22.zip'
+  ['NVIDIA_GeForce_Experience']='https://international.download.nvidia.com/GFE/GFEClient/3.27.0.112/GeForce_Experience_v3.27.0.112.exe'
+)
+for name in \"\${!drivers[@]}\"; do
+  FILE_EXT=\"zip\"
+  URL=\${drivers[\$name]}
+  [[ \"\$URL\" == *.exe ]] && FILE_EXT=\"exe\"
+  DEST=\"\$DRIVER_DIR/\$name.\$FILE_EXT\"
+  echo \"[Urba] Baixando \$name...\"
+  curl -L \"\$URL\" -o \"\$DEST\"
+done
+echo '[Urba] Download concluído.'
+URBAEOF"
+  - curtin in-target -- chmod +x /usr/local/bin/urba_download_drivers.sh
+  # Executa o download no final para garantir rede funcional
+  - curtin in-target -- /usr/local/bin/urba_download_drivers.sh
+
+userdata:
+  # Local para inserção de comandos pós-instalação adicionais, se necessário
+
+autoinstall:
+  version: 1
+  interactive-sections:
+    - user
+    - network
+
+# ======================================================================
+# INSTRUÇÕES DE USO DO ARQUIVO
+#
+# 1. Gere hash SHA-512 para senha (user password) com:
+#      mkpasswd --method=SHA-512
+#    e substitua o campo 'password'.
+# 2. Coloque este arquivo YAML num pendrive na pasta /autoinstall/ ou /nocloud/.
+# 3. Crie pendrive bootável Ubuntu 25.04 LTS com Rufus (GPT + FAT32).
+# 4. No menu de boot, passe o argumento de kernel:
+#      autoinstall ds=nocloud\;s=/cdrom/autoinstall/
+# 5. A instalação será totalmente interativa/instrumentada, exibindo mensagens
+#    e configurando desde partições até rede e drivers automaticamente.
+# 6. Após instalar Ubuntu, prossiga com instalação do Windows 10 no espaço reservado.
+# 7. Reative o GRUB conforme documentação oficial após instalação do Windows.
+#
+# CITAÇÃO ABNT:
+# URBA, Edelmar. Urba_autoinstall_linux_dualboot_ubuntu25.04.yaml para instalação automatizada Ubuntu 25.04 LTS e dual boot Windows 10 com configuração de rede e download automático drivers. [S.l.], 2025. Disponível em: [repositório institucional]. Acesso em: [data].
+# ======================================================================
