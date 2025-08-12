@@ -89,32 +89,42 @@ echo "Ajuste do teclado: se ainda faltar alguma tecla, revise Configurações > 
 echo "Pronto para desenvolver e pesquisar!"
 
 echo ""
-echo "== 9. INSTALANDO MINICONDA (GERENCIADOR DE AMBIENTES PYTHON) =="
+echo echo ""
+echo "== 9. INSTALANDO MINICONDA E CRIANDO AMBIENTE LLM_NEWS_CUDA =="
 
-# Diretório padrão de instalação
 CONDA_DIR="$HOME/miniconda3"
 
-# Verifica se já existe conda instalado
+# Instala Miniconda se ainda não estiver presente
 if ! command -v conda &> /dev/null; then
     echo "-- Baixando instalador Miniconda --"
     wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh
-
-    echo "-- Instalando Miniconda em $CONDA_DIR --"
     bash /tmp/miniconda.sh -b -p $CONDA_DIR
-
-    echo "-- Ativando conda no shell --"
     eval "$($CONDA_DIR/bin/conda shell.bash hook)" || true
     $CONDA_DIR/bin/conda init bash
     $CONDA_DIR/bin/conda init zsh
-
-    echo "-- Miniconda instalado com sucesso --"
 else
     echo "-- Conda já detectado no sistema, pulando instalação --"
+    eval "$(conda shell.bash hook)" || true
 fi
 
-# OBS: Se preferir instalar o Anaconda completo, substitua o link acima por:
-# wget https://repo.anaconda.com/archive/Anaconda3-latest-Linux-x86_64.sh -O /tmp/anaconda.sh
-# bash /tmp/anaconda.sh -b -p $HOME/anaconda3
+# Cria o ambiente "llm_news_cuda" apenas se não existir
+if ! conda info --envs | grep -q "llm_news_cuda"; then
+    echo "-- Criando o ambiente conda: llm_news_cuda --"
+    conda create -y -n llm_news_cuda python=3.11
+    echo "-- Ambiente llm_news_cuda criado!"
+else
+    echo "-- Ambiente llm_news_cuda já existe, pulando criação --"
+fi
+
+# Ativa o ambiente e instala pacotes essenciais (ajuste conforme suas necessidades)
+echo "-- Instalando bibliotecas básicas no ambiente llm_news_cuda (panda, numpy, scikit-learn, jupyterlab, cuda-toolkit se disponível) --"
+conda activate llm_news_cuda
+conda install -y numpy pandas scikit-learn matplotlib jupyterlab
+conda install -y -c conda-forge pytorch torchvision torchaudio pytorch-cuda=12.1 transformers datasets tqdm
+
+conda deactivate
+
+echo "== Miniconda pronto e ambiente llm_news_cuda inicial criado! =="
 
 
 # Fim
