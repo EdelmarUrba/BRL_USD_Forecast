@@ -88,4 +88,33 @@ echo "Para usar o Oh My Zsh, abra um novo terminal ou faça logout/login."
 echo "Ajuste do teclado: se ainda faltar alguma tecla, revise Configurações > Região e Idioma > Layout do Teclado e confirme 'Portuguese (Brazil, no dead keys)' como ativo."
 echo "Pronto para desenvolver e pesquisar!"
 
+echo ""
+echo "== 9. INSTALANDO MINICONDA (GERENCIADOR DE AMBIENTES PYTHON) =="
+
+# Diretório padrão de instalação
+CONDA_DIR="$HOME/miniconda3"
+
+# Verifica se já existe conda instalado
+if ! command -v conda &> /dev/null; then
+    echo "-- Baixando instalador Miniconda --"
+    wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh
+
+    echo "-- Instalando Miniconda em $CONDA_DIR --"
+    bash /tmp/miniconda.sh -b -p $CONDA_DIR
+
+    echo "-- Ativando conda no shell --"
+    eval "$($CONDA_DIR/bin/conda shell.bash hook)" || true
+    $CONDA_DIR/bin/conda init bash
+    $CONDA_DIR/bin/conda init zsh
+
+    echo "-- Miniconda instalado com sucesso --"
+else
+    echo "-- Conda já detectado no sistema, pulando instalação --"
+fi
+
+# OBS: Se preferir instalar o Anaconda completo, substitua o link acima por:
+# wget https://repo.anaconda.com/archive/Anaconda3-latest-Linux-x86_64.sh -O /tmp/anaconda.sh
+# bash /tmp/anaconda.sh -b -p $HOME/anaconda3
+
+
 # Fim
