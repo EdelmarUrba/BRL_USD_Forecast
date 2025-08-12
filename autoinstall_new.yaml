@@ -1,0 +1,116 @@
+# AUTOINSTALL.YAML — VERSÃO CONSOLIDADA E ENRIQUECIDA
+# Projeto: From News to Forecast (Edelmar Urba)
+# Data: 12/08/2025
+# Documentação e comentários em português e inglês para fins acadêmicos/ABNT
+
+autoinstall:
+  version: 1
+
+  identity:
+    hostname: ubuntu-dualboot
+    username: urbauser
+    password: >-
+      $6$/vGaWlsjH6czk.sn$rblQNp1AY2bB655ekl7jKapVQzPPh63gZBhMNZ.87OkKYPOVf.4KuP0BPqUHtP1qcK4Dk4MQqxwbFJapkcDxY1
+    # Senha será exigida a troca no primeiro login via chage -d 0 (security best practice)
+
+  locale: pt_BR.UTF-8
+
+  keyboard:
+    layout: br
+    variant: nodeadkeys
+    # ABNT2 padrão, sem "dead keys" (aconselhado para pesquisas/redação científica)
+
+  timezone: America/Sao_Paulo
+
+  storage:
+    layout:
+      name: custom
+    devices:
+      - match:
+          serial: "SFYRDK2000G"
+        ptable: gpt
+        grub_device: true
+        preserve: true
+        wipe: superblock-recursive
+        partitions:
+          - size: 512M
+            id: efi-part
+            type: EF00
+            fs:
+              type: fat32
+            label: EFI
+            flag: boot,esp
+            preserve: true
+
+          - size: 150G
+            id: ubuntu-root
+            type: 8300
+            fs:
+              type: ext4
+            label: UbuntuRoot
+            mount: /
+            preserve: false
+
+          - size: 150G
+            id: ubuntu-home
+            type: 8300
+            fs:
+              type: ext4
+            label: Home
+            mount: /home
+            preserve: false
+
+          - size: 32G
+            id: swap-part
+            type: 8200
+            flag: swap
+            preserve: false
+
+          - size: 350G
+            id: shared-ntfs
+            type: 0700
+            fs:
+              type: ntfs
+            label: Compartilhada
+            mount: /mnt/compartilhada
+            preserve: false
+
+          - size: 900G
+            id: win-space
+            type: 0700
+            preserve: true
+
+          - size: 116G
+            id: reserved-space
+            type: 8300
+            fs:
+              type: ext4
+            label: Reservada
+            mount: /mnt/reservada
+            preserve: true
+
+  # Inclui comandos pós-instalação diretamente na fase "late-commands".
+  late-commands:
+    # Atualiza pacotes e instala o mínimo do desenvolvimento (PT/EN)
+    - curtin in-target --target=/target -- apt-get update
+    - curtin in-target --target=/target -- apt-get upgrade -y
+    - curtin in-target --target=/target -- apt-get install -y build-essential git unzip curl wget htop python3 python3-pip python3-venv zsh emacs ca-certificates lsb-release software-properties-common snapd locales
+
+    # Garante teclado ABNT2 como default em todos tty e sessões
+    - echo 'XKBMODEL="pc105"' > /target/etc/default/keyboard
+    - echo 'XKBLAYOUT="br"' >> /target/etc/default/keyboard
+    - echo 'XKBVARIANT="nodeadkeys"' >> /target/etc/default/keyboard
+    - echo 'XKBOPTIONS=""' >> /target/etc/default/keyboard
+
+    # Força configuração do teclado e troca de senha no primeiro login (PT/EN)
+    - curtin in-target --target=/target -- dpkg-reconfigure keyboard-configuration
+    - curtin in-target --target=/target -- chage -d 0 urbauser
+
+    # Instalar Oh My Zsh para o usuário (comando seguro em ambiente non-interactive)
+    - curtin in-target --target=/target -- su - urbauser -c "export RUNZSH=no; sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" \"\" --unattended"
+
+    # (Opcional) baixar setup-pos-inst.sh para execução manual após o boot
+    # - curtin in-target --target=/target -- wget -O /home/urbauser/setup-pos-inst.sh https://raw.githubusercontent.com/EdelmarUrba/BRL_USD_Forecast/main/setup-pos-inst.sh
+    # - curtin in-target --target=/target -- chown urbauser:urbauser /home/urbauser/setup-pos-inst.sh
+
+  interactive-sections: []
