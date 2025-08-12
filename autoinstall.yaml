@@ -12,7 +12,7 @@ autoinstall:
   locale: pt_BR.UTF-8
   keyboard:
     layout: br
-    variant: abnt2
+    variant: nativo-us
   timezone: America/Sao_Paulo
 
   ssh:
