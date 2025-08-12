@@ -23,10 +23,14 @@ autoinstall:
 
   apt:
     primary:
-      - http://archive.ubuntu.com/ubuntu
+      - uri: http://archive.ubuntu.com/ubuntu 
+      suite: plucky 
+      components: [main, restricted, universe, multiverse]
     security:
-      - http://security.ubuntu.com/ubuntu
-
+      - uri: http://security.ubuntu.com/ubuntu 
+      suite: plucky
+      components: [main, restricted, universe, multiverse]
+      
   packages:
     - build-essential
     - python3
