@@ -14,35 +14,6 @@ autoinstall:
     variant: nativo-us
   timezone: America/Sao_Paulo
 
-  ssh:
-    install-server: true
-    allow-pw: false
-    authorized-keys:
-      - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC..."
-
-  apt:
-    primary:
-      - uri: http://archive.ubuntu.com/ubuntu
-        suite: plucky
-        components: [main, restricted, universe, multiverse]
-    security:
-      - uri: http://security.ubuntu.com/ubuntu
-        suite: plucky-security
-        components: [main, restricted, universe, multiverse]
-
-  packages:
-    - build-essential
-    - python3
-    - python3-pip
-    - python3-venv
-    - git
-    - unzip
-    - curl
-    - wget
-    - htop
-    - ntfs-3g
-    - software-properties-common
-
   storage:
     layout:
       name: custom
@@ -50,8 +21,8 @@ autoinstall:
       - match:
           serial: "SFYRDK2000G"
         ptable: gpt
-        preserve: true
         grub_device: true
+        preserve: true
         wipe: superblock-recursive
         partitions:
           - size: 512M
@@ -66,7 +37,6 @@ autoinstall:
           - size: 150G
             id: ubuntu-root
             type: 8300
-            flag: linux-root
             fs:
               type: ext4
             label: UbuntuRoot
@@ -111,27 +81,5 @@ autoinstall:
             mount: /mnt/reservada
             preserve: true
 
-  late-commands:
-    - >-
-      curtin in-target -- bash -c
-      "echo '[INFO] Iniciando auto-instalação...' |
-      tee /var/log/autoinstall.log"
-    - >-
-      curtin in-target -- bash -c
-      "apt update && apt upgrade -y ||
-      { echo 'Falha no apt upgrade' |
-      tee -a /var/log/autoinstall.log; exit 1; }"
-    - >-
-      curtin in-target -- bash -c
-      "snap install snapcraft --classic ||
-      { echo 'Falha ao instalar Snapcraft' |
-      tee -a /var/log/autoinstall.log; exit 1; }"
-    - >-
-      curtin in-target -- bash -c
-      "chage -d 0 urbauser"
-    - >-
-      curtin in-target -- bash -c
-      "echo '[INFO] Instalação finalizada com sucesso.' |
-      tee -a /var/log/autoinstall.log"
-
+  # A seção abaixo mantém o instalador totalmente automático:
   interactive-sections: []
