@@ -1,12 +1,10 @@
 #!/bin/bash
 #
-# Script de pós-instalação consolidado e idempotente
+# Script de pós-instalação consolidado, idempotente e automatizado
 # Projeto: From News to Forecast
 # Autor: Edelmar Urba
 # Última atualização: 12/08/2025
-#
-# Pode ser executado diversas vezes; instala apenas o que estiver faltando.
-#
+# Pode ser executado várias vezes, instalando apenas o que faltar
 
 set -e
 set -u
@@ -50,7 +48,7 @@ conda_install_if_missing() {
 echo "== Atualizando sistema =="
 sudo apt update && sudo apt upgrade -y
 
-### 2. Instalar pacotes essenciais ###
+### 2. Pacotes essenciais ###
 echo "== Instalando pacotes essenciais =="
 install_if_missing build-essential git unzip curl wget htop \
                    ntfs-3g software-properties-common snapd \
@@ -72,7 +70,7 @@ else
     echo "[APT] VSCode já instalado, pulando."
 fi
 
-### 4. Python e pacotes científicos ###
+### 4. Python + bibliotecas cientificas ###
 echo "== Configurando Python e venv =="
 install_if_missing python3 python3-pip python3-venv
 python3 -m venv ~/venvs/news_forecast_env || true
@@ -81,7 +79,7 @@ pip install --upgrade pip setuptools wheel
 pip_install_if_missing numpy pandas scikit-learn matplotlib seaborn scipy jupyterlab tqdm torch torchvision torchaudio transformers datasets
 deactivate
 
-### 5. Clonar/atualizar repositório do projeto ###
+### 5. Repositório do projeto ###
 if [ ! -d "$HOME/BRL_USD_Forecast" ]; then
     git clone https://github.com/EdelmarUrba/BRL_USD_Forecast.git ~/BRL_USD_Forecast
 else
@@ -127,6 +125,13 @@ else
     eval "$(conda shell.bash hook)"
 fi
 
+# Configuração para aceitar automaticamente os termos dos canais Anaconda
+conda config --set channel_priority flexible
+conda config --set always_yes True
+conda config --set auto_activate_base false
+conda config --set accept_channel_terms true
+
+# Criar ambiente "llm_news_cuda" se não existir
 if ! conda env list | grep -q "llm_news_cuda"; then
     echo "-- Criando ambiente conda llm_news_cuda --"
     conda create -y -n llm_news_cuda python=3.11
